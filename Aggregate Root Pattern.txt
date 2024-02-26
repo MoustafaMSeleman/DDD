@@ -1,0 +1,345 @@
+# Intro:
+--------
+ - In Domain-Driven Design we organize our business logic around domain entities.
+ - Domain entities are classes that represent well-known business concepts and keep together app data and business logic or behavior.
+ - An aggregate is a set of domain entities that are meant to be managed as a single one. ( Order and OrderItems in it ).
+
+
+# Invariant Business Rules
+---------------------------
+ - are rules that defines the core business logic and constraints that must hold at all times.
+ - this rules represent esstential business requirements.
+ - ex: 
+     a bank account balance can't be negative.
+     a product can't be sold for less than its cost.
+
+# How to Design an Aggregate:
+-----------------------------
+ - an Aggregate defines a boundary that separates the entities inside it from the rest of the application.
+ - the Aggregate Root will be the main entity of the group.
+ - the outside world will interact with the aggregate only through its root.
+    in this way, we will always be able to enforce business invariants and maintain a consistent internal state.
+ - we must avoid dependencies between entities inside the Aggregate and any kind of outside object and vice-verse.
+ 
+ - when it comes to data access, aggregates becomes the basic unit for data storage and retrieval.
+   we will typically have a single repository per aggregate.
+ 
+
+# Example:
+----------
+ - Unfortunately, we didn't apply aggregate design principles upfront.
+   in that case, we will probably end up with entity classes that are just classes that match our business concepts with all public props.
+
+ - To start with, we would have defined an enumeration type to represent the different possible states an Order can be in:
+   
+    public enum OrderStatus 
+    {
+      PendingPayment,
+      ReadyForShipping,
+      InTransit
+    }
+
+ - Then another class for the info related to each of product inside the order:
+
+    public class OrderItem
+    {
+      public long OrderItemId {get; set;}
+      public Order Order {get; set;}
+      public string ItemName {get; set;}
+      public int Quantity {get; set;}
+      public decimal UnitPrice {get; set;}
+    }
+ 
+ - And finally, a class to represent the order itself:
+
+    public class Order
+    {
+      public long OrderId {get; set;}
+      public DateTime CreationDate {get; set;}
+      public decimal PaidAmount {get; set;}
+      public OrderStatus Status {get; set;}
+      public ICollection<OrderItem> Items {get; set;} = new List<OrderItems>();
+    }
+
+
+ - Although these objects model the data structure and the relationships in our domain correctly,
+   they don't conatain any business logic.
+   they do anything to enforce our business invariants since they expose all the properties and their default constructors.
+
+ - This allows any components to create orders in ways that mayn't comply with all our business rules.
+
+ - Often, thses half-backed domain entities come hand-in-hand with a layer of so-called domain services.
+   this services, usually implement all the calcus and take care of storage concerns:
+
+   public interface IOrderService
+   {
+     Task AddAmountDiscountAsync (Order order, string description, decimal amount);
+     Task<OrderItem> AddOrderItemAsync (Order order, string name, decimal price, int units);
+     Task AddPercentageDiscountAsync (Order order, string description, decimal percentage);
+     Task CancelOrderAsync (Order order);
+     Task<Order> CreateOrderAsync();
+     Task SendToCustomerAsync (Order order);
+   }
+
+ - If our domain classes look like this, most probably our design suffers from "Anemic Domain Model Anti-Pattern".
+
+
+ - Let's take steps to improve our domain model using aggregate design principles.
+   1- Order entity will be our aggregate root.
+   2- Make our property setters private, "to prevent code outside the aggregate from changing internal data arbitrarily".
+ 
+       public class Order
+       {
+         internal List<OrderItem> _items = new();
+         public long OrderId {get; private set;}
+         public DateTime CreationDate {get; private set;}
+         public decimal OaidAmount {get; private set;}
+         public DateTime? ShippingDate {get; private set;}
+         public OrderStatus Status {get; private set;}
+         public IReadOnlyCollection<OrderItem> Items => new ReadOnlyCollection<OrderItem> (_items);
+         public Order()
+	 {
+            Status = OrderStatus.PaymentPending;
+            CreationDate = DateTime.Now;
+	 }
+       }
+
+      
+   3- We will have a lot of business invariants related to the OrderItems collection.
+      our aggregate root and no one else will have to enforce them,
+      so we will make the _items collection internal while exposing a read-only version via the Items public property.
+
+
+   4- Let's apply the same principles to our OrderItem entity.
+
+       public class OrderItem
+       {
+          public long OrderItemId {get; private set;}
+          public string ItemName {get; private set;}
+          public uint Quantity {get; private set;}
+          public decimal UnitPrice {get; private set;}
+          
+          internal OrderItem (string itemName, uint quantity, decimal unitPrice)
+          {...}
+       }
+
+   5- Implementing Behaviors
+
+      there are a few business processes we need to support:
+        - accept payments to an order.
+        - add/remove items in an order and update the quantity of an order item
+        - manage order status and be able to ship an order to a customer.
+
+      let's start with the Order class and implement our payment management features.
+      First, let's implement a read-only property to easily access the order's total amount.
+    
+         public decimal OrderTotal => _items.Sum(x => Convert.ToDecimal(x.Quantity) * x.UnitPrice);
+
+      Then, let's create an AddPaymeny() method: 
+    
+         public void AddPayment( decimal amount)
+         {
+           if( amount <= 0 )
+               throw new InvalidOperationExecution("Amount must be positive");
+           if( amount > OrderTotal - PaidAmount ) 
+	       throw new InvalidOperationExecution("Payment can't exceed order total");
+           PaidAmount += amount;
+           if( PaidAmount >= OrderTotal )
+               Status = OrderStatus.ReadyForShipping;
+         }   
+
+         Within AddPayment() we will check a couple of business rules: 
+           - Payment amounts can't be negative.
+           - Can't pay more than the order total.
+         Also, we are implementing another business-related behavior: 
+           - The order becomes ready for shipping once the OrderTotal has been paid.
+
+
+        - The rules related to the creation of individual OrderItem entities are something that 
+          we want to keep close to the entity itself,
+          so let's add an internal ctor to the OrderItem class that can enforce those rules:
+
+          private OrderItem()
+          {
+          }
+
+          internal OrderItem (string itemName, uint quantity, decimal unitPrice)
+          {
+            if(string.IsNullOrEmpty(itemName)
+               throw new ArgumentException($" '{nameOf(itemName)}' can not be null or empty", nameof(itemName) );
+            if(quantity ==0)
+               throw new ArgumentException("Quantity must be at least one.", nameof(quantity));
+            if(unitPrice <=0)
+               throw new ArgumentException("Unit price must be above zero.", nameof(unitPrice));
+
+            ItemName = itemName;
+            Quantity = quantity;
+            UnitPrice = unitPrice;
+          }
+
+
+          The Quantity property itself has a private setter to avoid anyone messing with it unexpectedly.
+          however, we can always provide public entity methods that will better model our domain semantics enforcing business rules:
+ 
+            internal void AddQuantity( uint quantity )
+            {
+               this.Quantity += quantity;
+            }
+
+ 
+            internal void WithdrawQuantity( uint quantity )
+            {
+               if( this.Quantity - quantity <= 0 )
+                   throw new InvalidOperationException("Can't rmove all units");
+               this.Quantity -= quantity;
+            }
+
+
+
+    Considering that the OrderItem entity is internal to our aggregate,
+    we want to prevent instances of this entity from being created outside of it.
+
+     - Let's create methods to add and remove order items.
+       another business rule shows up here, 
+       "The order items can't be modified once the order has been paid".
+  
+      public void AddItem( string itemName, uint quantity, decimal unitPrice)
+      {
+        if( Status != OrderStatus.PendingPayment )
+           throw new InvalidOperationException ("Can't modify order once payment has been done");
+        _items.Add( new OrderItem(itemName,quantity, unitPrice) );
+      }
+
+      public void RemoveItem( string itemName )
+      {
+        if( Status != OrderStatus.PendingPaymeny )
+           throw new InvalidOperationException ("Can't modify order once payment has been done");
+        _items.RemoveAll( x => x.ItemName == itemName );          
+      }
+
+
+ - Data Access Abstractions as Part of the Domain
+
+     with that in mind, let's add to our domain a repository abstraction that revolves around the aggregate concept.
+
+       SINGLE REPOSITORY per Aggregate 
+
+    public interface IOrderRepository
+    {
+      Task<Order?> GetByIdAsync (long id);
+      Task<Order> CreateAsync (Order entity);
+      Task<Order> UpdateAsync (Order entity);
+    }
+
+  ** the repo interface must be in the same project as the domain entities.
+
+
+
+         ------------------------------------------------------------------------------------
+         |                                  Domain Layer                                     |
+         |        .............                                       ...................... |
+         |        .   Order   .                                       .   IOrderRepository . | 
+         |        . OrderItems.                                       ...................... |    
+         |        .............                                                              |
+         -------------------------------------------------------------------------------------
+                                             / \
+                                            /   \
+                                             | |
+                                             | |
+         ----------------------------------------------------------------------------------------
+         |                             Data Access Layer                                         |
+         |        .................                                       ...................... |
+         |        .  OrderModel   .                                       .  OrderRepository   . | 
+         |        . OrderItemModel.                                       ...................... |    
+         |        .................                                                              |
+         -----------------------------------------------------------------------------------------
+
+
+
+- Aggreagte root are cluster/group of objects that are treated as a single unit of data.
+
+- Let's try to understand this definition,
+   Customer class has the ability to add mutiple Address objects to it.
+    we have exposed an address collection from the customer class to represent the 1-M relationship.
+
+   class Customer
+   {
+      public string Name {get; set;}
+      public DateTime DateOfBirth {get; set;}
+      public List Addresses {get; set;}
+   }
+
+   class Address 
+   {
+      public string Address1 {get; set;}
+      public string Type {get; set;}
+   }
+
+
+  The above class structure works perfectly well,
+   we can create object of customer and add multiple addresses to it
+ 
+  Customer cutomer = new Customer();
+  customer.Name = "Moustafa";
+  customer.DateOfBirth = Convert.ToDateTime("12/03/1977");
+ 
+  Address address1 = new Address();
+  address1.Address1 = "Egypt";
+  address1.Type = "Home";
+
+  Address address2 = new Address();
+  address2.Address1 = "UAE";
+  address2.Type = "Home";
+
+  customer.Addresses.Add(address1);
+  customer.Addresses.Add(address2);
+
+
+- Now let's say we want to implement the following validations:
+  Customer can only have one address of Home type"
+
+- Customer is composed of Addresses Collection
+  so Customer is like a main root
+
+  1- make the address list private, 
+     so no direct access to it
+
+  2- create Add method in the customer class,
+     in it we have put the validation 
+
+  3- clients who wants to enumerate through the address collection
+     we have exposed |IEnumerable" interface.
+
+- Customer and Address object is one logical data unit,
+  to maintain integrity of address validation, we need to go via the Customer class,  
+  In the same way loading of data, update, delete should happen via the Customer class
+
+  When we say load customer from db, all the respective address objects should also get loaded
+
+  So when a group of objects which form one logical unit should have centralized root via which 
+  the manipulation of the contained object should happen.
+
+  This kind of arrangement is "Aggregate Root".
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,127 @@
+- Domain-Driven Design is an approach to software development that centers the development on 
+    programming a domain model that has a rich understanding of the processes and rules of a domain.
+
+- The name comes from a 2003 book by Eric Evans that describes the approach through a catalog of patterns.
+
+- Domain:
+   
+    - it refers to the subject area or problem space that the software system is being built to address.
+    - it encompasses the real-world concepts, rules and processes that the software is intended to model or support.
+    - for example, in a banking app, the domain includes concepts like accounts, transactions, customers.
+
+
+- Driven:
+   
+    - it implies that the design of the sw system is guided or influenced by the characteristics and requirements of the domain.
+    - the design decisions are based on a deep understanding of the domain,
+      rather than being driven solely by technical considerations or implementation details.
+
+
+
+- Design:
+   
+    - refers to the process of creating a plan or blueprint for the software system.
+
+** Domain-Driven Design is a concept introduced by a programmer "Eric Evans" in 2004
+     in his book "Domain-Driven Design: Tackling Complexity in Heart of software"
+
+- According to Eric Evans, When we are developing sw, our focus shouldn't be primarily on technology, rather it should be primarily on business.
+
+# Tactical Design Patterns in DDD :
+-----------------------------------
+
+1- Entity
+.........
+ - a domain object that has a distinct identity and lifecycle.
+ - entities are characterized by their unique ids and mutable state.
+ - a BankAccount entity might have props like : account number, balance, and owner 
+      along with methods to deposit, withdraw or transfer funds.
+
+2- Value Object
+...............
+ - a domain object that represents a conceptually immutable value.
+ - unlike entities, value objects don't have a distinct id, 
+    and are typically used to represent attributes or properties of entities.
+ - value objects are equality-comparable based on their properties, rather than their identity.
+
+
+3- Aggregate
+............
+ - a cluster of domain objects that are treated as a single unit for the purpose of data consistency and transactional integrity.
+ - aggregates consist of one or more entities and value objects,with one entity designated as the aggregate root.
+ - the aggregate root serves as the entry point for accessing and modifying the aggregate's internal state.
+
+4- Repository
+.............
+ - it is a mechanism for abstracting data access and persistence logic from the domain model.
+ - repositories provide a standardized interface for querying and storing domain objects,
+   hiding the details of how data is retrieved or stored.
+ - repositories encapsulate the logic for translating between domain objects and underlying data storage mechanisms,
+   such as databases oe external services.
+ 
+5- Factory
+..........
+ - a creational pattern used to encapsulate the logic for creating instances of complex domain objects.
+ - factories abstract the process of objects instantiation, 
+   allowing clients to create objects without needing to know the details of their construction.
+ 
+6- Service
+..........
+ - a domain object that represents a behavior or operation that doesn't naturally belong to any specific entity or value object.
+ - services encapsulate domain logic that operates on multiple objects.
+  
+# Benefits of DDD :
+-------------------
+1- Shared Understanding
+  - it encourages collaboration between domain experts, developers and stakeholders.
+  - by encouraging a shared understanding of the problem domain through the ubiquitous language,
+    teams can communicate more effectively and ensure that 
+    the software accurately reflects the needs and requirements of the business.
+
+2- Focus on Core Domain
+
+3- Clear Separation of Concerns
+
+4- Improved Testability
+
+
+# Real-world Example
+--------------------
+
+ - Let's say, we are developing a ride-hailing app called "RideX".
+   the system allows users to request rides,
+   drivers to accept ride requests.
+
+ - Ubiquitous Langauge
+   1- User: Refers to individuals who request rides via the RideX platform.
+   2- Driver : Refers to individuals who provide rides to users
+   3- Ride Request: a user's request for a ride, specifying details such as pickup location, destination, and ride preferences.
+   4- Ride : represents a single instance of a ride, including details such as pickup and drop-off locations, fare and duration.
+   5- Ride Status: Requested, Accepted, InProgress, Completed.
+   
+ - Bounded Contexts
+   1- Ride Management Context
+       responsible for managing the lifecycle of rides,
+       including requests, ride assignments to drivers, and ride status updates.
+   2- User Management Context
+       handles user authentication, registeration, and user-specific features such as ride history and payment methods
+   3- Driver Management Context
+       manages driver authentication, registeration, availablility status, and driver-specific features such as rating and earnings.
+
+ - Entities and Value Objects
+   1- User Entity
+   2- Driver Entity
+   3- Ride Request Entity
+   4- Ride Entity
+   5- Location Value Object
+
+ - Aggregates
+   1- Ride Aggregate
+
+ - Services
+   1- Ride Assignment Service
+   2- Payment Service
+
+ - Domain Events
+   1- RideRequestedEvent
+   2- RideAcceptedEvent
