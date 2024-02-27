@@ -1,3 +1,12 @@
+- Software development has evolved over the years and the need for new architectures to build a more robust software's is key.
+- These architectures are: -
+  - The Monolithic Architecture
+  - The N-Layer/N-Tier Architecture
+  - The Clean Architecture
+  - The Domain Driven Design Architecture.
+  - The Microservices Architecture.
+
+
 - Domain-Driven Design is an approach to software development that centers the development on 
     programming a domain model that has a rich understanding of the processes and rules of a domain.
 

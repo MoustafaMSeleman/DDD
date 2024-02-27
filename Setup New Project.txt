@@ -1,0 +1,56 @@
+- Domain-Driven Design and the Clean Architecture are similar.
+  The difference between them is that the DDD architecture requires domain experts that understand the business domain.
+
+- A DDD project contains 3 layers:
+  - The Domain Layer
+  - The Infrastructure Layer
+  - The Application Layer
+
+[1] Domain Layer
+----------------
+ - is the hearth of the business software.
+ - without this layer, other layers can't exist; because they are dependent on it.
+ - this where the domain expert and sw engineers defines the business concepts, situations, behaviors and rules.
+ - this layer is "persistence ignorant", that means it doesn't define any database logic and it doesn't depend on any other layer. 
+ 
+ - Project Structure: -
+   
+   - Entities Folder:
+     ----------------
+       - Entities
+       - Aggregates
+       - ValueObjects
+
+
+   - SeedWork:
+     ---------
+       - a folder that contains base classes and interfaces and can be named "Common" or "SharedKernel"
+
+
+   - DomainEvents:
+     ------------- 
+       - a folder that contains classes that implement the MediatR INotification interfaces.
+       - domain events are used to communicate with other entities or aggregates when something happens in the domain.
+       - use domain events when something happens in the domain that different parts of the domain should be aware of.
+
+         for example: 
+          if you have a student entity and you want a student to add a todo,
+          you would end up adding the code to the student entity that calls the Todo entity class, which isn't good practice in DDD.
+          Todo is an entity, and Student is also an entity, they should only manage its state and communicate by adding domain events and using a mediator object.
+
+       - Domain-event communication happens in-process.
+         A Mediator object is used in-between to communicate with other entites.
+       - We use the MediatR library to dispatch domain events.
+
+
+   - Specification:
+     --------------
+       - a folder that contains concrete and base classes for the specification pattern in DDD.
+       - the specification pattern can be applied to the DDD Architecture that is intended to be used to define logic for 
+          optional sorting, filtering and paging logic.
+
+
+
+
+
+ 

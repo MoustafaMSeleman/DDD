@@ -1,0 +1,65 @@
+- MediatR is a simple, unambitious mediator implementation in .Net
+- it supports in-process messaging with no dependencies.
+- it supports request/respone, commands, queries, notifications and events, sync and async 
+  with intelligent dispatching via c# generic variance.
+
+- The MediatR  is built to support CQRS, "Command Query Responsibility Segregation", 
+  which defines a way to structure your read & write database operations, and it also supports the mediator pattern.
+
+- We can use the MediatR library to create the mediator pattern in our code.
+
+- It is a class that communicates with another class by using the MediatR mediator object.
+
+- In MediatR, we can send an in-process message in a request/response style that is handled by a single handler.
+
+- You can also publish messages to multiple handlers by using the INotification and INotificationHandler interface.
+
+- Install MediatR from the NuGet package manager.
+
+- Adding Domain Events
+----------------------
+  - in the student entity we define a behaviour that enables a student to enroll in a course.
+
+   public void EnrollCourse ( int studentId, int courseId ) 
+   {
+     if( !StudentCourses.Any(s => s.StudentId == studentId && s.CourseId == courseId )
+     {
+        _studentCourses.Add( new StudentCourse( courseId, studentId);
+
+       // Add domain event
+       var CourseEnrolledDomainEvent = new StudentEnrolledForCourseDomainEvent( courseId, studentId );
+       AddDomainEvent( CourseEnrolledDomainEvent ) ;
+
+       return;
+     }
+   }
+  
+  - the "AddDomainEvent" code is defined in the Entity base class that all aggregate root or entities inherit.
+
+   public abstract class Entity
+   {
+     public virtual int Id {get; protected set;}
+
+     private List<INotification> _domainEvents;
+
+     public IReadOnlyCollection<INotification> DomainEvents => _domainEvents?.AsReadOnly();
+
+     public void AddDomainEvent ( INotification eventItem )
+     {
+        _domainEvents = _domainEvents ?? new List<INotification>();
+        _domainEvents.Add(eventItem);
+     }
+
+     public void RemoveDomainEvent( INotification eventItem )
+     {
+        _domainEvents?.Remove(eventItem);
+     }
+
+     public void ClearDomainEvents()
+     {
+        _domainEvents?.Clear();
+     }
+   }
+
+
+
